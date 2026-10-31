@@ -64,25 +64,15 @@ import com.example.lddc.presentation.components.designsystem.LDDCCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(
-    viewModel: SettingsViewModel
-) {
+fun SettingsScreen(viewModel: SettingsViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = "设置",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                title = { Text(text = "设置", fontSize = 20.sp, fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         }
     ) { paddingValues ->
@@ -95,91 +85,75 @@ fun SettingsScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 搜索源设置
-            SettingsSection(
-                title = "搜索源",
-                icon = Icons.Default.MusicNote
-            ) {
+            SettingsSection(title = "搜索源", icon = Icons.Default.MusicNote) {
                 SourceSettings(
                     enabledSources = uiState.enabledSources,
-                    onSourceToggle = { source, enabled ->
-                        viewModel.toggleSource(source, enabled)
-                    }
+                    onSourceToggle = { source, enabled -> viewModel.toggleSource(source, enabled) }
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 歌词格式设置
-            SettingsSection(
-                title = "歌词格式",
-                icon = Icons.Default.Settings
-            ) {
+            SettingsSection(title = "歌词格式", icon = Icons.Default.Settings) {
                 FormatSettings(
                     preferredFormat = uiState.preferredFormat,
-                    onFormatSelected = { format ->
-                        viewModel.setPreferredFormat(format)
-                    }
+                    onFormatSelected = { format -> viewModel.setPreferredFormat(format) }
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 显示设置
-            SettingsSection(
-                title = "显示设置",
-                icon = Icons.Default.Translate
-            ) {
+            SettingsSection(title = "显示设置", icon = Icons.Default.Translate) {
                 ToggleSettingItem(
                     title = "自动显示翻译",
                     subtitle = "搜索时默认显示翻译歌词",
                     checked = uiState.showTranslation,
                     onCheckedChange = { viewModel.setShowTranslation(it) }
                 )
-
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
-
                 ToggleSettingItem(
                     title = "自动显示罗马音",
                     subtitle = "搜索时默认显示罗马音歌词",
                     checked = uiState.showRomanization,
                     onCheckedChange = { viewModel.setShowRomanization(it) }
                 )
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                ToggleSettingItem(
+                    title = "自动隐藏底栏",
+                    subtitle = "3秒无操作后隐藏，上滑屏幕恢复",
+                    checked = uiState.autoHideNavBar,
+                    onCheckedChange = { viewModel.setAutoHideNavBar(it) }
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 保存设置
-            SettingsSection(
-                title = "保存设置",
-                icon = Icons.Default.Save
-            ) {
+            SettingsSection(title = "保存设置", icon = Icons.Default.Save) {
                 DownloadPathSetting(
                     treeUri = uiState.downloadTreeUri,
                     onPick = { uri -> viewModel.setDownloadTreeUri(context, uri) },
                     onClear = { viewModel.clearDownloadTreeUri(context) }
                 )
-
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
-
                 ToggleSettingItem(
                     title = "自动保存",
                     subtitle = "搜索后自动保存歌词到本地",
                     checked = uiState.autoSave,
                     onCheckedChange = { viewModel.setAutoSave(it) }
                 )
-
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
-
                 ToggleSettingItem(
                     title = "嵌入歌词",
                     subtitle = "将歌词嵌入到音频文件中",
@@ -190,27 +164,19 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 关于设置
-            SettingsSection(
-                title = "关于",
-                icon = Icons.Default.Info
-            ) {
+            SettingsSection(title = "关于", icon = Icons.Default.Info) {
                 LinkSettingItem(
                     title = "项目参考",
                     subtitle = "LDDC - 原项目 GitHub",
                     onClick = { openUrl(context, "https://github.com/chenmozhijin/LDDC") }
                 )
-
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
-
-                val versionName = BuildConfig.VERSION_NAME
-                val versionCode = BuildConfig.VERSION_CODE
                 InfoSettingItem(
                     title = "版本",
-                    subtitle = "LDDC v$versionName ($versionCode)"
+                    subtitle = "LDDC v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
                 )
             }
 
@@ -220,11 +186,7 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsSection(
-    title: String,
-    icon: ImageVector,
-    content: @Composable () -> Unit
-) {
+private fun SettingsSection(title: String, icon: ImageVector, content: @Composable () -> Unit) {
     Column {
         Row(
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 12.dp),
@@ -237,44 +199,19 @@ private fun SettingsSection(
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                Icon(icon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
             }
-
             Spacer(modifier = Modifier.width(12.dp))
-
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold
-            )
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
-
-        LDDCCard(
-            elevated = false
-        ) {
-            Column {
-                content()
-            }
-        }
+        LDDCCard(elevated = false) { Column { content() } }
     }
 }
 
 @Composable
-private fun SourceSettings(
-    enabledSources: List<Source>,
-    onSourceToggle: (Source, Boolean) -> Unit
-) {
+private fun SourceSettings(enabledSources: List<Source>, onSourceToggle: (Source, Boolean) -> Unit) {
     val sources = listOf(Source.QM, Source.NE, Source.KG)
-
-    Column(
-        modifier = Modifier.padding(vertical = 8.dp)
-    ) {
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
         sources.forEachIndexed { index, source ->
             val isEnabled = source in enabledSources
             val (name, color) = when (source) {
@@ -283,64 +220,32 @@ private fun SourceSettings(
                 Source.KG -> "酷狗音乐" to Color(0xFF00A9FF)
                 else -> source.name to MaterialTheme.colorScheme.primary
             }
-
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onSourceToggle(source, !isEnabled) }
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                modifier = Modifier.fillMaxWidth().clickable { onSourceToggle(source, !isEnabled) }.padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(color.copy(alpha = 0.15f)),
+                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(color.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = when (source) {
-                            Source.QM -> "Q"
-                            Source.NE -> "N"
-                            Source.KG -> "K"
-                            else -> "?"
-                        },
-                        color = color,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
+                        text = when (source) { Source.QM -> "Q"; Source.NE -> "N"; Source.KG -> "K"; else -> "?" },
+                        color = color, fontSize = 15.sp, fontWeight = FontWeight.Bold
                     )
                 }
-
                 Spacer(modifier = Modifier.width(14.dp))
-
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Text(name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                     Text(
                         text = if (isEnabled) "已启用" else "已禁用",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (isEnabled)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                Switch(
-                    checked = isEnabled,
-                    onCheckedChange = { onSourceToggle(source, it) }
-                )
+                Switch(checked = isEnabled, onCheckedChange = { onSourceToggle(source, it) })
             }
-
             if (index < sources.size - 1) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
+                HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             }
         }
     }
@@ -348,103 +253,51 @@ private fun SourceSettings(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FormatSettings(
-    preferredFormat: LyricsFormat,
-    onFormatSelected: (LyricsFormat) -> Unit
-) {
+private fun FormatSettings(preferredFormat: LyricsFormat, onFormatSelected: (LyricsFormat) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val formats = LyricsFormat.entries.take(5)
-
-    Column(
-        modifier = Modifier.padding(16.dp)
-    ) {
-        Text(
-            text = "首选格式",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Medium
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = it }
-        ) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text("首选格式", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(12.dp))
+        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
             OutlinedTextField(
                 value = preferredFormat.displayName,
                 onValueChange = {},
                 readOnly = true,
                 singleLine = true,
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(),
-                textStyle = androidx.compose.ui.text.TextStyle(
-                    fontSize = 14.sp
-                )
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp)
             )
-
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
+            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 formats.forEach { format ->
                     DropdownMenuItem(
                         text = { Text(format.displayName) },
-                        onClick = {
-                            onFormatSelected(format)
-                            expanded = false
-                        }
+                        onClick = { onFormatSelected(format); expanded = false }
                     )
                 }
             }
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = "搜索歌词时默认使用的格式",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Spacer(Modifier.height(12.dp))
+        Text("搜索歌词时默认使用的格式", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
-/**
- * 下载目录设置项
- */
 @Composable
-private fun DownloadPathSetting(
-    treeUri: String?,
-    onPick: (Uri) -> Unit,
-    onClear: () -> Unit
-) {
+private fun DownloadPathSetting(treeUri: String?, onPick: (Uri) -> Unit, onClear: () -> Unit) {
     val context = LocalContext.current
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocumentTree()
-    ) { uri -> uri?.let(onPick) }
-
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> uri?.let(onPick) }
     val isCustom = treeUri != null
     val valid = DownloadLocation.isValid(context, treeUri)
     val display = DownloadLocation.displayName(context, treeUri)
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "下载目录",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(2.dp))
+            Text("下载目录", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = when {
                     !isCustom -> "默认：${DownloadLocation.DEFAULT_DISPLAY}"
@@ -452,130 +305,58 @@ private fun DownloadPathSetting(
                     else -> "$display（已失效，将使用默认目录）"
                 },
                 style = MaterialTheme.typography.bodySmall,
-                color = if (!isCustom || valid)
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                else
-                    MaterialTheme.colorScheme.error
+                color = if (!isCustom || valid) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
             )
         }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        if (isCustom) {
-            TextButton(onClick = onClear) { Text("恢复默认") }
-        }
-        TextButton(onClick = { launcher.launch(null) }) {
-            Text(if (isCustom) "更改" else "选择")
-        }
+        Spacer(Modifier.width(8.dp))
+        if (isCustom) TextButton(onClick = onClear) { Text("恢复默认") }
+        TextButton(onClick = { launcher.launch(null) }) { Text(if (isCustom) "更改" else "选择") }
     }
 }
 
 @Composable
-private fun ToggleSettingItem(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
+private fun ToggleSettingItem(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+        modifier = Modifier.fillMaxWidth().clickable { onCheckedChange(!checked) }.padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(2.dp))
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        Spacer(Modifier.width(16.dp))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
 
+@Composable
+private fun LinkSettingItem(title: String, subtitle: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(2.dp))
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        }
         Spacer(modifier = Modifier.width(16.dp))
-
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange
-        )
+        Icon(Icons.Default.Link, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
-private fun LinkSettingItem(
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+private fun InfoSettingItem(title: String, subtitle: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-
-        Spacer(modifier = Modifier.width(16.dp))
-
-        Icon(
-            imageVector = Icons.Default.Link,
-            contentDescription = null,
-            modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun InfoSettingItem(
-    title: String,
-    subtitle: String
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(2.dp))
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
 private fun openUrl(context: Context, url: String) {
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-    context.startActivity(intent)
+    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
 }

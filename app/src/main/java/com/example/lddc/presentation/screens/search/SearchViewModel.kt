@@ -6,6 +6,7 @@ import com.example.lddc.common.models.enums.Source
 import com.example.lddc.common.models.info.SongInfo
 import com.example.lddc.data.repository.LyricsRepository
 import com.example.lddc.domain.search.ClearSearchHistoryUseCase
+import com.example.lddc.domain.search.DeleteSearchHistoryUseCase
 import com.example.lddc.domain.search.GetSearchHistoryUseCase
 import com.example.lddc.domain.search.SearchSongsUseCase
 import com.example.lddc.domain.settings.GetSettingsUseCase
@@ -24,6 +25,7 @@ class SearchViewModel @Inject constructor(
     private val searchSongsUseCase: SearchSongsUseCase,
     private val getSearchHistoryUseCase: GetSearchHistoryUseCase,
     private val clearSearchHistoryUseCase: ClearSearchHistoryUseCase,
+    private val deleteSearchHistoryUseCase: DeleteSearchHistoryUseCase,
     private val getSettingsUseCase: GetSettingsUseCase
 ) : BaseViewModel() {
 
@@ -76,56 +78,41 @@ class SearchViewModel @Inject constructor(
     ): List<SongInfo> {
         var songs = results.values.flatten()
 
-        // 按歌曲名筛选
         if (filters.songName.isNotBlank()) {
             songs = songs.filter { song ->
                 song.title?.contains(filters.songName, ignoreCase = true) == true
             }
         }
 
-        // 按歌手名筛选
         if (filters.artist.isNotBlank()) {
             songs = songs.filter { song ->
                 song.artist?.toString()?.contains(filters.artist, ignoreCase = true) == true
             }
         }
 
-        // 按专辑名筛选
         if (filters.album.isNotBlank()) {
             songs = songs.filter { song ->
                 song.album?.contains(filters.album, ignoreCase = true) == true
             }
         }
 
-        // 按平台筛选
         if (filters.platforms.isNotEmpty()) {
             songs = songs.filter { song ->
                 song.source in filters.platforms
             }
         }
 
-        // 交叉排序：QQ、KG、NE、QQ、KG、NE...
         songs = interleaveSongsBySource(songs)
-
         return songs
     }
 
-    /**
-     * 交叉排序歌曲列表
-     * 按照 QQ音乐、酷狗音乐、网易云音乐 的顺序交叉排列
-     */
     private fun interleaveSongsBySource(songs: List<SongInfo>): List<SongInfo> {
-        // 按平台分组
         val grouped = songs.groupBy { it.source }
-
-        // 定义平台顺序
         val sourceOrder = listOf(Source.QM, Source.KG, Source.NE)
-
         val result = mutableListOf<SongInfo>()
         var index = 0
         var hasMore = true
 
-        // 交叉排列
         while (hasMore) {
             hasMore = false
             for (source in sourceOrder) {
@@ -137,7 +124,6 @@ class SearchViewModel @Inject constructor(
             }
             index++
         }
-
         return result
     }
 
@@ -148,10 +134,8 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch(exceptionHandler) {
             _uiState.update { it.copy(isSearching = true, errorMessage = null, currentPage = 1, hasMoreData = true) }
 
-            // 保存搜索历史
             searchSongsUseCase.saveSearchHistory(keyword, _uiState.value.searchType)
 
-            // 执行搜索
             searchSongsUseCase(
                 keyword = keyword,
                 source = _uiState.value.selectedSource,
@@ -163,7 +147,6 @@ class SearchViewModel @Inject constructor(
                     is LyricsRepository.SearchResult.Loading -> {
                         _uiState.update { it.copy(isSearching = true) }
                     }
-
                     is LyricsRepository.SearchResult.Success -> {
                         _uiState.update { currentState ->
                             val filtered = applyFilters(result.results, currentState.filters)
@@ -172,17 +155,13 @@ class SearchViewModel @Inject constructor(
                                 searchResults = result.results,
                                 filteredResults = filtered,
                                 hasSearched = true,
-                                hasMoreData = result.results.values.any { it.size >= 20 } // 假设每页20条
+                                hasMoreData = result.results.values.any { it.size >= 20 }
                             )
                         }
                     }
-
                     is LyricsRepository.SearchResult.Error -> {
                         _uiState.update {
-                            it.copy(
-                                isSearching = false,
-                                errorMessage = result.message
-                            )
+                            it.copy(isSearching = false, errorMessage = result.message)
                         }
                     }
                 }
@@ -196,10 +175,8 @@ class SearchViewModel @Inject constructor(
 
         viewModelScope.launch(exceptionHandler) {
             _uiState.update { it.copy(isLoadingMore = true) }
-
             val nextPage = _uiState.value.currentPage + 1
 
-            // 执行搜索
             searchSongsUseCase(
                 keyword = keyword,
                 source = _uiState.value.selectedSource,
@@ -208,13 +185,9 @@ class SearchViewModel @Inject constructor(
                 page = nextPage
             ).collectLatest { result ->
                 when (result) {
-                    is LyricsRepository.SearchResult.Loading -> {
-                        // 加载更多时不需要更新isSearching
-                    }
-
+                    is LyricsRepository.SearchResult.Loading -> {}
                     is LyricsRepository.SearchResult.Success -> {
                         _uiState.update { currentState ->
-                            // 合并结果
                             val newResults = currentState.searchResults.toMutableMap()
                             result.results.forEach { (source, songs) ->
                                 val existingSongs = newResults.getOrDefault(source, emptyList())
@@ -227,17 +200,13 @@ class SearchViewModel @Inject constructor(
                                 searchResults = newResults,
                                 filteredResults = filtered,
                                 currentPage = nextPage,
-                                hasMoreData = result.results.values.any { it.size >= 20 } // 假设每页20条
+                                hasMoreData = result.results.values.any { it.size >= 20 }
                             )
                         }
                     }
-
                     is LyricsRepository.SearchResult.Error -> {
                         _uiState.update {
-                            it.copy(
-                                isLoadingMore = false,
-                                errorMessage = result.message
-                            )
+                            it.copy(isLoadingMore = false, errorMessage = result.message)
                         }
                     }
                 }
@@ -267,6 +236,13 @@ class SearchViewModel @Inject constructor(
     fun clearAllSearchHistory() {
         viewModelScope.launch {
             clearSearchHistoryUseCase()
+        }
+    }
+
+    // 新增：删除单条历史记录
+    fun deleteSingleHistory(id: Long) {
+        viewModelScope.launch {
+            deleteSearchHistoryUseCase(id)
         }
     }
 

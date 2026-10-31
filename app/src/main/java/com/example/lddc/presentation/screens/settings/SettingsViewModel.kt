@@ -28,9 +28,7 @@ class SettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
-    init {
-        loadSettings()
-    }
+    init { loadSettings() }
 
     private fun loadSettings() {
         viewModelScope.launch {
@@ -45,6 +43,7 @@ class SettingsViewModel @Inject constructor(
                         downloadTreeUri = settings.downloadTreeUri,
                         showTranslation = settings.autoTranslate,
                         showRomanization = settings.showRomaji,
+                        autoHideNavBar = settings.autoHideNavBar,
                         isLoading = false
                     )
                 }
@@ -55,11 +54,7 @@ class SettingsViewModel @Inject constructor(
     fun toggleSource(source: Source, enabled: Boolean) {
         viewModelScope.launch {
             val currentSources = _uiState.value.enabledSources.toMutableList()
-            if (enabled) {
-                if (source !in currentSources) currentSources.add(source)
-            } else {
-                currentSources.remove(source)
-            }
+            if (enabled) { if (source !in currentSources) currentSources.add(source) } else { currentSources.remove(source) }
             _uiState.update { it.copy(enabledSources = currentSources) }
             val currentSettings = getSettingsUseCase().first()
             updateSettingsUseCase(currentSettings.copy(enabledSources = currentSources))
@@ -106,11 +101,16 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /** 设置自定义下载目录（SAF） */
-    fun setDownloadTreeUri(context: Context, uri: Uri) {
-        if (!DownloadLocation.takePermission(context, uri)) {
-            return
+    fun setAutoHideNavBar(enabled: Boolean) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(autoHideNavBar = enabled) }
+            val currentSettings = getSettingsUseCase().first()
+            updateSettingsUseCase(currentSettings.copy(autoHideNavBar = enabled))
         }
+    }
+
+    fun setDownloadTreeUri(context: Context, uri: Uri) {
+        if (!DownloadLocation.takePermission(context, uri)) return
         viewModelScope.launch {
             _uiState.update { it.copy(downloadTreeUri = uri.toString()) }
             val currentSettings = getSettingsUseCase().first()
@@ -118,12 +118,9 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /** 恢复默认下载目录 */
     fun clearDownloadTreeUri(context: Context) {
         val old = _uiState.value.downloadTreeUri
-        if (old != null) {
-            DownloadLocation.releasePermission(context, old)
-        }
+        if (old != null) DownloadLocation.releasePermission(context, old)
         viewModelScope.launch {
             _uiState.update { it.copy(downloadTreeUri = null) }
             val currentSettings = getSettingsUseCase().first()
@@ -140,6 +137,7 @@ class SettingsViewModel @Inject constructor(
         val downloadTreeUri: String? = null,
         val showTranslation: Boolean = false,
         val showRomanization: Boolean = false,
+        val autoHideNavBar: Boolean = true,
         val isLoading: Boolean = true
     )
 }

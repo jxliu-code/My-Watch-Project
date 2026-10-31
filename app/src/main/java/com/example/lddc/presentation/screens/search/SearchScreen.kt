@@ -17,17 +17,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
@@ -90,11 +92,9 @@ fun SearchScreen(
     val context = LocalContext.current
     val isRound = context.resources.configuration.isScreenRound
 
-    // 处理初始搜索词和筛选条件
     LaunchedEffect(Unit) {
         if (initialQuery.isNotEmpty() && !uiState.hasSearched) {
             viewModel.onKeywordChange(initialQuery)
-            // 应用初始筛选条件
             if (initialFilters.hasActiveFilters()) {
                 viewModel.onFiltersChange(initialFilters)
             }
@@ -102,7 +102,6 @@ fun SearchScreen(
         }
     }
 
-    // 筛选对话框
     if (showFilterDialog) {
         FilterDialog(
             searchFilters = uiState.filters,
@@ -139,13 +138,11 @@ fun SearchScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 搜索栏
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 搜索输入框
                 LDDCSearchInput(
                     value = uiState.keyword,
                     onValueChange = viewModel::onKeywordChange,
@@ -154,7 +151,6 @@ fun SearchScreen(
                     modifier = Modifier.weight(1f)
                 )
 
-                // 筛选按钮
                 val activeFilterCount = uiState.filters.getActiveFilterCount()
                 BadgedBox(
                     badge = {
@@ -175,220 +171,185 @@ fun SearchScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 内容区域
-            when {
-                uiState.isSearching -> {
-                    LDDCLoadingState(text = "搜索中...")
-                }
-
-                uiState.errorMessage != null -> {
-                    LDDCEmptyState(
-                        icon = Icons.Default.Search,
-                        title = "搜索失败",
-                        description = uiState.errorMessage!!,
-                        action = {
-                            LDDCFilledButton(
-                                text = "重试",
-                                onClick = viewModel::search
-                            )
-                        }
-                    )
-                }
-
-                !uiState.hasSearched -> {
-                    // 显示搜索历史
-                    if (searchHistory.isNotEmpty()) {
-                        SearchHistorySection(
-                            history = searchHistory.map { it.keyword },
-                            onItemClick = { viewModel.searchFromHistory(it) },
-                            onClear = { viewModel.clearAllSearchHistory() }
-                        )
-                    } else {
-                        LDDCEmptyState(
-                            icon = Icons.Default.Search,
-                            title = "开始搜索",
-                            description = "输入关键词搜索歌词"
-                        )
-                    }
-                }
-
-                uiState.searchResults.isEmpty() -> {
-                    LDDCEmptyState(
-                        icon = Icons.Default.Search,
-                        title = "未找到结果",
-                        description = "尝试使用其他关键词搜索"
-                    )
-                }
-
-                else -> {
-                    // 使用筛选后的结果
-                    val displaySongs = uiState.filteredResults
-                    val totalCount = uiState.searchResults.values.flatten().size
-
-                    // 搜索结果列表
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (displaySongs.size != totalCount)
-                                "搜索结果 (${displaySongs.size}/$totalCount)"
-                            else
-                                "搜索结果 ($totalCount)",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-
-                        // 清除筛选按钮
-                        if (uiState.filters.hasActiveFilters()) {
-                            Text(
-                                text = "清除筛选",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.clickable { viewModel.clearFilters() }
-                            )
-                        }
+            Box(modifier = Modifier.weight(1f)) {
+                when {
+                    uiState.isSearching -> {
+                        LDDCLoadingState(text = "搜索中...")
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    if (displaySongs.isEmpty()) {
+                    uiState.errorMessage != null -> {
                         LDDCEmptyState(
                             icon = Icons.Default.Search,
-                            title = "没有符合条件的结果",
-                            description = "尝试调整筛选条件"
-                        )
-                    } else {
-                        // 根据屏幕方向使用单列或多列
-                        val configuration = LocalConfiguration.current
-                        val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
-
-                        if (isLandscape) {
-                            // 横屏使用网格布局
-                            val gridState = rememberLazyGridState()
-                            // 用于检测滑动方向
-                            var lastFirstVisibleItem by remember { mutableIntStateOf(0) }
-                            var lastFirstVisibleScrollOffset by remember { mutableIntStateOf(0) }
-
-                            // 监听滚动到底部
-                            LaunchedEffect(gridState, uiState.hasMoreData) {
-                                snapshotFlow {
-                                    Triple(
-                                        gridState.layoutInfo.visibleItemsInfo,
-                                        gridState.firstVisibleItemIndex,
-                                        gridState.firstVisibleItemScrollOffset
-                                    )
-                                }
-                                    .collect { (visibleItems, firstIndex, scrollOffset) ->
-                                        if (!uiState.hasMoreData || uiState.isLoadingMore) return@collect
-
-                                        val totalItems = gridState.layoutInfo.totalItemsCount
-                                        val lastVisibleItem = visibleItems.lastOrNull()?.index ?: 0
-
-                                        // 判断是否滑到底部
-                                        val isNearBottom = lastVisibleItem >= totalItems - 2
-
-                                        // 判断是否在滑动（第一个可见项或偏移量发生变化）
-                                        val isScrolling = firstIndex != lastFirstVisibleItem ||
-                                                scrollOffset != lastFirstVisibleScrollOffset
-
-                                        // 更新上次状态
-                                        lastFirstVisibleItem = firstIndex
-                                        lastFirstVisibleScrollOffset = scrollOffset
-
-                                        // 同时满足：滑到底部 + 正在滑动
-                                        if (isNearBottom && isScrolling) {
-                                            viewModel.loadMore()
-                                        }
-                                    }
+                            title = "搜索失败",
+                            description = uiState.errorMessage!!,
+                            action = {
+                                LDDCFilledButton(
+                                    text = "重试",
+                                    onClick = viewModel::search
+                                )
                             }
+                        )
+                    }
 
-                            LazyVerticalGrid(
-                                columns = GridCells.Adaptive(minSize = 320.dp),
-                                state = gridState,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                                contentPadding = PaddingValues(bottom = 16.dp)
+                    !uiState.hasSearched -> {
+                        if (searchHistory.isNotEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState())
                             ) {
-                                items(displaySongs) { song ->
-                                    SearchResultGridItem(
-                                        song = song,
-                                        onClick = { onSongClick(song) }
-                                    )
-                                }
-
-                                // 加载更多指示器
-                                if (uiState.isLoadingMore || uiState.hasMoreData) {
-                                    item(span = { GridItemSpan(maxLineSpan) }) {
-                                        LoadMoreIndicator(
-                                            isLoading = uiState.isLoadingMore,
-                                            hasMoreData = uiState.hasMoreData,
-                                            onClick = { viewModel.loadMore() }
-                                        )
-                                    }
-                                }
+                                SearchHistorySection(
+                                    history = searchHistory,
+                                    onItemClick = { viewModel.searchFromHistory(it) },
+                                    onDeleteItem = { id -> viewModel.deleteSingleHistory(id) },
+                                    onClear = { viewModel.clearAllSearchHistory() }
+                                )
                             }
                         } else {
-                            // 竖屏使用单列列表
-                            val listState = rememberLazyListState()
-                            // 用于检测滑动方向
-                            var lastFirstVisibleItem by remember { mutableIntStateOf(0) }
-                            var lastFirstVisibleScrollOffset by remember { mutableIntStateOf(0) }
+                            LDDCEmptyState(
+                                icon = Icons.Default.Search,
+                                title = "开始搜索",
+                                description = "输入关键词搜索歌词"
+                            )
+                        }
+                    }
 
-                            // 监听滚动到底部
-                            LaunchedEffect(listState, uiState.hasMoreData) {
-                                snapshotFlow {
-                                    Triple(
-                                        listState.layoutInfo.visibleItemsInfo,
-                                        listState.firstVisibleItemIndex,
-                                        listState.firstVisibleItemScrollOffset
+                    uiState.searchResults.isEmpty() -> {
+                        LDDCEmptyState(
+                            icon = Icons.Default.Search,
+                            title = "未找到结果",
+                            description = "尝试使用其他关键词搜索"
+                        )
+                    }
+
+                    else -> {
+                        val displaySongs = uiState.filteredResults
+                        val totalCount = uiState.searchResults.values.flatten().size
+
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (displaySongs.size != totalCount)
+                                        "搜索结果 (${displaySongs.size}/$totalCount)"
+                                    else
+                                        "搜索结果 ($totalCount)",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+
+                                if (uiState.filters.hasActiveFilters()) {
+                                    Text(
+                                        text = "清除筛选",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.clickable { viewModel.clearFilters() }
                                     )
                                 }
-                                    .collect { (visibleItems, firstIndex, scrollOffset) ->
-                                        if (!uiState.hasMoreData || uiState.isLoadingMore) return@collect
-
-                                        val totalItems = listState.layoutInfo.totalItemsCount
-                                        val lastVisibleItem = visibleItems.lastOrNull()?.index ?: 0
-
-                                        // 判断是否滑到底部
-                                        val isNearBottom = lastVisibleItem >= totalItems - 2
-
-                                        // 判断是否在滑动（第一个可见项或偏移量发生变化）
-                                        val isScrolling = firstIndex != lastFirstVisibleItem ||
-                                                scrollOffset != lastFirstVisibleScrollOffset
-
-                                        // 更新上次状态
-                                        lastFirstVisibleItem = firstIndex
-                                        lastFirstVisibleScrollOffset = scrollOffset
-
-                                        // 同时满足：滑到底部 + 正在滑动
-                                        if (isNearBottom && isScrolling) {
-                                            viewModel.loadMore()
-                                        }
-                                    }
                             }
 
-                            LazyColumn(
-                                state = listState,
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                contentPadding = PaddingValues(bottom = 16.dp)
-                            ) {
-                                items(displaySongs) { song ->
-                                    SearchResultItem(
-                                        song = song,
-                                        onClick = { onSongClick(song) }
-                                    )
-                                }
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                                // 加载更多指示器
-                                if (uiState.isLoadingMore || uiState.hasMoreData) {
-                                    item {
-                                        LoadMoreIndicator(
-                                            isLoading = uiState.isLoadingMore,
-                                            hasMoreData = uiState.hasMoreData,
-                                            onClick = { viewModel.loadMore() }
-                                        )
+                            if (displaySongs.isEmpty()) {
+                                LDDCEmptyState(
+                                    icon = Icons.Default.Search,
+                                    title = "没有符合条件的结果",
+                                    description = "尝试调整筛选条件"
+                                )
+                            } else {
+                                val configuration = LocalConfiguration.current
+                                val isLandscape = configuration.screenWidthDp > configuration.screenHeightDp
+
+                                if (isLandscape) {
+                                    val gridState = rememberLazyGridState()
+                                    var lastFirstVisibleItem by remember { mutableIntStateOf(0) }
+                                    var lastFirstVisibleScrollOffset by remember { mutableIntStateOf(0) }
+
+                                    LaunchedEffect(gridState, uiState.hasMoreData) {
+                                        snapshotFlow {
+                                            Triple(
+                                                gridState.layoutInfo.visibleItemsInfo,
+                                                gridState.firstVisibleItemIndex,
+                                                gridState.firstVisibleItemScrollOffset
+                                            )
+                                        }
+                                            .collect { (visibleItems, firstIndex, scrollOffset) ->
+                                                if (!uiState.hasMoreData || uiState.isLoadingMore) return@collect
+                                                val totalItems = gridState.layoutInfo.totalItemsCount
+                                                val lastVisibleItem = visibleItems.lastOrNull()?.index ?: 0
+                                                val isNearBottom = lastVisibleItem >= totalItems - 2
+                                                val isScrolling = firstIndex != lastFirstVisibleItem || scrollOffset != lastFirstVisibleScrollOffset
+                                                lastFirstVisibleItem = firstIndex
+                                                lastFirstVisibleScrollOffset = scrollOffset
+                                                if (isNearBottom && isScrolling) viewModel.loadMore()
+                                            }
+                                    }
+
+                                    LazyVerticalGrid(
+                                        columns = GridCells.Adaptive(minSize = 320.dp),
+                                        state = gridState,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                        contentPadding = PaddingValues(bottom = 16.dp)
+                                    ) {
+                                        items(displaySongs) { song ->
+                                            SearchResultGridItem(song = song, onClick = { onSongClick(song) })
+                                        }
+                                        if (uiState.isLoadingMore || uiState.hasMoreData) {
+                                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                                LoadMoreIndicator(
+                                                    isLoading = uiState.isLoadingMore,
+                                                    hasMoreData = uiState.hasMoreData,
+                                                    onClick = { viewModel.loadMore() }
+                                                )
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    val listState = rememberLazyListState()
+                                    var lastFirstVisibleItem by remember { mutableIntStateOf(0) }
+                                    var lastFirstVisibleScrollOffset by remember { mutableIntStateOf(0) }
+
+                                    LaunchedEffect(listState, uiState.hasMoreData) {
+                                        snapshotFlow {
+                                            Triple(
+                                                listState.layoutInfo.visibleItemsInfo,
+                                                listState.firstVisibleItemIndex,
+                                                listState.firstVisibleItemScrollOffset
+                                            )
+                                        }
+                                            .collect { (visibleItems, firstIndex, scrollOffset) ->
+                                                if (!uiState.hasMoreData || uiState.isLoadingMore) return@collect
+                                                val totalItems = listState.layoutInfo.totalItemsCount
+                                                val lastVisibleItem = visibleItems.lastOrNull()?.index ?: 0
+                                                val isNearBottom = lastVisibleItem >= totalItems - 2
+                                                val isScrolling = firstIndex != lastFirstVisibleItem || scrollOffset != lastFirstVisibleScrollOffset
+                                                lastFirstVisibleItem = firstIndex
+                                                lastFirstVisibleScrollOffset = scrollOffset
+                                                if (isNearBottom && isScrolling) viewModel.loadMore()
+                                            }
+                                    }
+
+                                    LazyColumn(
+                                        state = listState,
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        contentPadding = PaddingValues(bottom = 16.dp)
+                                    ) {
+                                        items(displaySongs) { song ->
+                                            SearchResultItem(song = song, onClick = { onSongClick(song) })
+                                        }
+                                        if (uiState.isLoadingMore || uiState.hasMoreData) {
+                                            item {
+                                                LoadMoreIndicator(
+                                                    isLoading = uiState.isLoadingMore,
+                                                    hasMoreData = uiState.hasMoreData,
+                                                    onClick = { viewModel.loadMore() }
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -403,8 +364,9 @@ fun SearchScreen(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SearchHistorySection(
-    history: List<String>,
+    history: List<SearchViewModel.SearchHistoryItem>,
     onItemClick: (String) -> Unit,
+    onDeleteItem: (Long) -> Unit,
     onClear: () -> Unit
 ) {
     Column {
@@ -430,14 +392,60 @@ private fun SearchHistorySection(
 
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(bottom = 16.dp)
         ) {
-            history.forEach { keyword ->
+            history.forEach { item ->
                 SearchHistoryChip(
-                    keyword = keyword,
-                    onClick = { onItemClick(keyword) }
+                    keyword = item.keyword,
+                    onClick = { onItemClick(item.keyword) },
+                    onDelete = { onDeleteItem(item.id) }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun SearchHistoryChip(
+    keyword: String,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick)
+            .padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.History,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = keyword,
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onDelete),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "删除",
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
         }
     }
 }
@@ -495,25 +503,142 @@ private fun LoadMoreIndicator(
 }
 
 @Composable
-private fun SearchHistoryChip(
-    keyword: String,
+private fun SearchResultItem(
+    song: SongInfo,
     onClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    LDDCCard(
+        onClick = onClick,
+        elevated = true
     ) {
-        Icon(
-            imageVector = Icons.Default.History,
-            contentDescription = null,
-            modifier = Modifier.size(16.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = keyword,
-            fontSize =
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!song.imageUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = song.imageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = song.title ?: "未知歌曲",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = song.artist?.toString() ?: "未知歌手",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
+
+            song.source?.let { source ->
+                LDDCSourceChip(
+                    text = getSourceShortName(source),
+                    sourceColor = getSourceColor(source)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultGridItem(
+    song: SongInfo,
+    onClick: () -> Unit
+) {
+    LDDCCard(
+        onClick = onClick,
+        elevated = true
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!song.imageUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = song.imageUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = song.title ?: "未知歌曲",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = song.artist?.toString() ?: "未知歌手",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            song.source?.let { source ->
+                LDDCSourceChip(
+                    text = getSourceShortName(source),
+                    sourceColor = getSourceColor(source)
+                )
+            }
+        }
+    }
+}
+
+private fun getSourceShortName(source: Source): String {
+    return when (source) {
+        Source.QM -> "QQ"
+        Source.NE -> "网易"
+        Source.KG -> "酷狗"
+        Source.MULTI -> "全部"
+        else -> source.name
+    }
+}
+
+@Composable
+private fun getSourceColor(source: Source): androidx.compose.ui.graphics.Color {
+    return when (source) {
+        Source.QM -> QQMusicColor
+        Source.NE -> NetEaseColor
+        Source.KG -> KugouColor
+        Source.MULTI -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.primary
+    }
+}

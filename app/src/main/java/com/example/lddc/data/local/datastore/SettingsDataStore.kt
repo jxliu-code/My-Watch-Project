@@ -30,11 +30,8 @@ class SettingsDataStore(private val context: Context) {
         val SHOW_ROMAJI = booleanPreferencesKey("show_romaji")
         val EMBED_LYRICS = booleanPreferencesKey("embed_lyrics")
         val SAVE_LYRICS_FILE = booleanPreferencesKey("save_lyrics_file")
-
-        // 自定义下载目录（SAF tree uri）
         val DOWNLOAD_TREE_URI = stringPreferencesKey("download_tree_uri")
-
-        // 扫描记录相关
+        val AUTO_HIDE_NAV_BAR = booleanPreferencesKey("auto_hide_nav_bar")
         val LAST_SCAN_TIME = longPreferencesKey("last_scan_time")
         val LAST_SCAN_SONG_COUNT = intPreferencesKey("last_scan_song_count")
         val INCREMENTAL_SCAN_ENABLED = booleanPreferencesKey("incremental_scan_enabled")
@@ -44,25 +41,14 @@ class SettingsDataStore(private val context: Context) {
         AppSettings(
             defaultSavePath = preferences[DEFAULT_SAVE_PATH],
             lyricsFormat = preferences[LYRICS_FORMAT]?.let {
-                try {
-                    LyricsFormat.valueOf(it)
-                } catch (e: Exception) {
-                    LyricsFormat.LINEBYLINELRC
-                }
+                try { LyricsFormat.valueOf(it) } catch (e: Exception) { LyricsFormat.LINEBYLINELRC }
             } ?: LyricsFormat.LINEBYLINELRC,
             searchSource = preferences[SEARCH_SOURCE]?.let {
-                try {
-                    Source.valueOf(it)
-                } catch (e: Exception) {
-                    Source.MULTI
-                }
+                try { Source.valueOf(it) } catch (e: Exception) { Source.MULTI }
             } ?: Source.MULTI,
             enabledSources = preferences[ENABLED_SOURCES]?.let {
-                try {
-                    it.split(",").map { sourceName -> Source.valueOf(sourceName) }
-                } catch (e: Exception) {
-                    listOf(Source.MULTI, Source.NE, Source.QM, Source.KG)
-                }
+                try { it.split(",").map { sourceName -> Source.valueOf(sourceName) } }
+                catch (e: Exception) { listOf(Source.MULTI, Source.NE, Source.QM, Source.KG) }
             } ?: listOf(Source.MULTI, Source.NE, Source.QM, Source.KG),
             autoTranslate = preferences[AUTO_TRANSLATE] ?: false,
             translateEngine = preferences[TRANSLATE_ENGINE] ?: "bing",
@@ -72,6 +58,7 @@ class SettingsDataStore(private val context: Context) {
             embedLyrics = preferences[EMBED_LYRICS] ?: true,
             saveLyricsFile = preferences[SAVE_LYRICS_FILE] ?: false,
             downloadTreeUri = preferences[DOWNLOAD_TREE_URI],
+            autoHideNavBar = preferences[AUTO_HIDE_NAV_BAR] ?: true,
             lastScanTime = preferences[LAST_SCAN_TIME] ?: 0L,
             lastScanSongCount = preferences[LAST_SCAN_SONG_COUNT] ?: 0,
             incrementalScanEnabled = preferences[INCREMENTAL_SCAN_ENABLED] ?: true
@@ -91,6 +78,7 @@ class SettingsDataStore(private val context: Context) {
             preferences[SHOW_ROMAJI] = settings.showRomaji
             preferences[EMBED_LYRICS] = settings.embedLyrics
             preferences[SAVE_LYRICS_FILE] = settings.saveLyricsFile
+            preferences[AUTO_HIDE_NAV_BAR] = settings.autoHideNavBar
             if (settings.downloadTreeUri != null) {
                 preferences[DOWNLOAD_TREE_URI] = settings.downloadTreeUri
             } else {
@@ -99,29 +87,10 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
-    suspend fun updateDefaultSavePath(path: String) {
-        context.dataStore.edit { preferences ->
-            preferences[DEFAULT_SAVE_PATH] = path
-        }
-    }
-
-    suspend fun updateLyricsFormat(format: LyricsFormat) {
-        context.dataStore.edit { preferences ->
-            preferences[LYRICS_FORMAT] = format.name
-        }
-    }
-
-    suspend fun updateSearchSource(source: Source) {
-        context.dataStore.edit { preferences ->
-            preferences[SEARCH_SOURCE] = source.name
-        }
-    }
-
-    suspend fun clearSettings() {
-        context.dataStore.edit { preferences ->
-            preferences.clear()
-        }
-    }
+    suspend fun updateDefaultSavePath(path: String) { context.dataStore.edit { it[DEFAULT_SAVE_PATH] = path } }
+    suspend fun updateLyricsFormat(format: LyricsFormat) { context.dataStore.edit { it[LYRICS_FORMAT] = format.name } }
+    suspend fun updateSearchSource(source: Source) { context.dataStore.edit { it[SEARCH_SOURCE] = source.name } }
+    suspend fun clearSettings() { context.dataStore.edit { it.clear() } }
 }
 
 data class AppSettings(
@@ -136,16 +105,13 @@ data class AppSettings(
     val showRomaji: Boolean = false,
     val embedLyrics: Boolean = true,
     val saveLyricsFile: Boolean = false,
-    /** SAF tree uri；null 表示使用默认 Download/LDDC */
     val downloadTreeUri: String? = null,
+    val autoHideNavBar: Boolean = true,
     val lastScanTime: Long = 0L,
     val lastScanSongCount: Int = 0,
     val incrementalScanEnabled: Boolean = true
 )
 
-/**
- * 扫描设置数据类
- */
 data class ScanSettings(
     val lastScanTime: Long = 0L,
     val lastScanSongCount: Int = 0,
